@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - PaperTrail</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html"><h2><i class="fas fa-book"></i> PaperTrail</h2></a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="explore.html" class="nav-link">Browse</a>
+                </li>
+                <li class="nav-item">
+                    <a href="add-book.html" class="nav-link">Add Book</a>
+                </li>
+                <li class="nav-item">
+                    <a href="contact.html" class="nav-link active">Contact</a>
+                </li>
+            </ul>
+            <div class="nav-right">
+                <div class="nav-search-container">
+                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off">
+                    <button class="nav-search-btn" onclick="searchBooksHeader()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div id="headerSearchSuggestions" class="search-suggestions"></div>
+                </div>
+                <div class="nav-icons">
+                    <a href="profile.html" class="nav-icon-link" id="profileIcon">
+                        <i class="fas fa-user"></i>
+                    </a>
+                    <a href="wishlist.html" class="nav-icon-link">
+                        <i class="fas fa-heart"></i>
+                        <span class="wishlist-count">0</span>
+                    </a>
+                    <a href="cart.html" class="nav-icon-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count">0</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Contact Us</h1>
+            <p>Get in touch with our library team</p>
+        </div>
+    </section>
+
+    <!-- Page Content -->
+    <section class="page-content">
+        <div class="container">
+            <div class="contact-container">
+                <!-- Contact Information -->
+                <div class="contact-info">
+                    <h2>Get in Touch</h2>
+                    <p>Have questions, suggestions, or need help? We'd love to hear from you! Our team is here to assist you with any inquiries about our digital library platform.</p>
+                    
+                    <div class="contact-methods">
+                        <div class="contact-method">
+                            <i class="fas fa-envelope"></i>
+                            <div>
+                                <h3>Email</h3>
+                                <p>contact@papertrail.com</p>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-method">
+                            <i class="fas fa-phone"></i>
+                            <div>
+                                <h3>Phone</h3>
+                                <p>70 370732</p>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-method">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <div>
+                                <h3>Address</h3>
+                                <p>12 Bliss Street<br>Hamra, Beirut</p>
+                            </div>
+                        </div>
+                        
+                        <div class="contact-method">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <h3>Hours</h3>
+                                <p>Monday - Friday: 9:00 AM - 6:00 PM<br>Saturday: 10:00 AM - 4:00 PM</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Form -->
+                <div class="contact-form-container">
+                    <h2>Send us a Message</h2>
+                    <form id="contactForm">
+                        <div class="form-group">
+                            <label for="contactName">Name *</label>
+                            <input type="text" id="contactName" name="name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contactEmail">Email *</label>
+                            <input type="email" id="contactEmail" name="email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contactSubject">Subject</label>
+                            <select id="contactSubject" name="subject">
+                                <option value="">Select a subject</option>
+                                <option value="general">General Inquiry</option>
+                                <option value="technical">Technical Support</option>
+                                <option value="book">Book Related</option>
+                                <option value="account">Account Issues</option>
+                                <option value="feedback">Feedback</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="contactMessage">Message *</label>
+                            <textarea id="contactMessage" name="message" rows="6" required placeholder="Please describe your inquiry in detail..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-full">
+                                <i class="fas fa-paper-plane"></i> Send Message
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="faq-section">
+                <h2>Frequently Asked Questions</h2>
+                <div class="faq-grid">
+                    <div class="faq-item">
+                        <h3><i class="fas fa-book"></i> How do I add a book to the library?</h3>
+                        <p>To add a book, you need to create an author account and login. Then navigate to the "Add Book" page and fill out the book information form. You can manage all your added books in the "My Books" section.</p>
+                    </div>    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-shopping-cart"></i> Can I purchase books through PaperTrail?</h3>
+                        <p>Currently, PaperTrail is a digital library management platform. You can browse books, add them to your cart and wishlist. The checkout functionality is available for demonstration purposes.</p>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-user-edit"></i> How do I become an author?</h3>
+                        <p>When signing up, select "Author" as your account type. This will give you access to add and manage your own books in the library. You can edit or delete your books anytime from the "My Books" section.</p>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-mobile-alt"></i> Is there a mobile app?</h3>
+                        <p>PaperTrail is currently a web-based platform that works on all devices through your browser. The website is fully responsive and optimized for mobile, tablet, and desktop viewing.</p>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-flag"></i> How do I report inappropriate content?</h3>
+                        <p>If you encounter inappropriate content, please contact us through this form with the details. Our team will review and take appropriate action within 24-48 hours.</p>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-edit"></i> Can I edit or delete my books?</h3>
+                        <p>Yes, as an author, you can edit or delete books you've added through the "My Books" section on the Add Book page. Simply click the Edit or Delete button on any of your books.</p>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-heart"></i> How does the wishlist work?</h3>
+                        <p>You can add books to your wishlist by clicking the heart icon on any book. Your wishlist helps you save books for later, and we'll show you recommended books based on your preferences.</p>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <h3><i class="fas fa-moon"></i> Can I change the theme?</h3>
+                        <p>Yes! You can toggle between light and dark mode using the theme toggle button in the navigation bar. Your preference will be saved for future visits.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PaperTrail</h3>
+                    <p>Your digital library companion</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="explore.html">Browse Books</a></li>
+                        <li><a href="add-book.html">Add Book</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="login.html">Login</a></li>
+                        <li><a href="login.html">Sign Up</a></li>
+                        <li><a href="cart.html">Cart</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PaperTrail. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/data.js"></script>
+</body>
+</html>

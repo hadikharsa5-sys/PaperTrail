@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Sign Up - PaperTrail</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html"><h2><i class="fas fa-book"></i> PaperTrail</h2></a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="explore.html" class="nav-link">Browse</a>
+                </li>
+                <li class="nav-item">
+                    <a href="add-book.html" class="nav-link">Add Book</a>
+                </li>
+                <li class="nav-item">
+                    <a href="contact.html" class="nav-link">Contact</a>
+                </li>
+            </ul>
+            <div class="nav-right">
+                <div class="nav-search-container">
+                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off">
+                    <button class="nav-search-btn" onclick="searchBooksHeader()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div id="headerSearchSuggestions" class="search-suggestions"></div>
+                </div>
+                <div class="nav-icons">
+                    <a href="profile.html" class="nav-icon-link" id="profileIcon">
+                        <i class="fas fa-user"></i>
+                    </a>
+                    <a href="wishlist.html" class="nav-icon-link">
+                        <i class="fas fa-heart"></i>
+                        <span class="wishlist-count">0</span>
+                    </a>
+                    <a href="cart.html" class="nav-icon-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count">0</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Welcome to PaperTrail</h1>
+            <p>Login to your account or create a new one to get started</p>
+        </div>
+    </section>
+
+    <!-- Page Content -->
+    <section class="page-content">
+        <div class="container">
+            <div class="auth-container">
+                <!-- Login Form -->
+                <div class="auth-form" id="loginForm">
+                    <h2>Login</h2>
+                    <form id="loginFormElement">
+                        <div class="form-group">
+                            <label for="loginUsername">Username or Email</label>
+                            <input type="text" id="loginUsername" name="username" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" name="password" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-full">
+                                <i class="fas fa-sign-in-alt"></i> Login
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="auth-switch">
+                        <p>Don't have an account? <a href="#" onclick="showSignupForm()">Sign up here</a></p>
+                    </div>
+                </div>
+
+                <!-- Signup Form -->
+                <div class="auth-form hidden" id="signupForm">
+                    <h2>Sign Up</h2>
+                    <form id="signupFormElement">
+                        <div class="form-group">
+                            <label for="signupName">Full Name *</label>
+                            <input type="text" id="signupName" name="name" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="signupUsername">Username *</label>
+                            <input type="text" id="signupUsername" name="username" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="signupEmail">Email *</label>
+                            <input type="email" id="signupEmail" name="email" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="signupPassword">Password *</label>
+                            <input type="password" id="signupPassword" name="password" required minlength="6">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="signupConfirmPassword">Confirm Password *</label>
+                            <input type="password" id="signupConfirmPassword" name="confirmPassword" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="signupRole">Account Type *</label>
+                            <select id="signupRole" name="role" required>
+                                <option value="">Select Account Type</option>
+                                <option value="reader">Reader - Browse and purchase books</option>
+                                <option value="author">Author - Add and manage your books</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-primary btn-full">
+                                <i class="fas fa-user-plus"></i> Sign Up
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="auth-switch">
+                        <p>Already have an account? <a href="#" onclick="showLoginForm()">Login here</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Demo Accounts -->
+            <div class="demo-accounts">
+                <h3>Demo Accounts</h3>
+                <div class="demo-account-grid">
+                    <div class="demo-account">
+                        <h4>Admin Account</h4>
+                        <p><strong>Username:</strong> admin</p>
+                        <p><strong>Password:</strong> admin123</p>
+                        <button class="btn btn-outline btn-small" onclick="fillDemoLogin('admin', 'admin123')">
+                            Use Demo
+                        </button>
+                    </div>
+                    <div class="demo-account">
+                        <h4>Author Account</h4>
+                        <p><strong>Username:</strong> author1</p>
+                        <p><strong>Password:</strong> author123</p>
+                        <button class="btn btn-outline btn-small" onclick="fillDemoLogin('author1', 'author123')">
+                            Use Demo
+                        </button>
+                    </div>
+                    <div class="demo-account">
+                        <h4>Reader Account</h4>
+                        <p><strong>Username:</strong> reader1</p>
+                        <p><strong>Password:</strong> reader123</p>
+                        <button class="btn btn-outline btn-small" onclick="fillDemoLogin('reader1', 'reader123')">
+                            Use Demo
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PaperTrail</h3>
+                    <p>Your digital library companion</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="explore.html">Browse Books</a></li>
+                        <li><a href="add-book.html">Add Book</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="login.html">Login</a></li>
+                        <li><a href="login.html">Sign Up</a></li>
+                        <li><a href="cart.html">Cart</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PaperTrail. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/data.js"></script>
+</body>
+</html>

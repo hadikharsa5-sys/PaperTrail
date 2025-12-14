@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - PaperTrail</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html"><h2><i class="fas fa-book"></i> PaperTrail</h2></a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="explore.html" class="nav-link">Browse</a>
+                </li>
+                <li class="nav-item">
+                    <a href="add-book.html" class="nav-link">Add Book</a>
+                </li>
+                <li class="nav-item">
+                    <a href="contact.html" class="nav-link">Contact</a>
+                </li>
+            </ul>
+            <div class="nav-right">
+                <div class="nav-search-container">
+                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off">
+                    <button class="nav-search-btn" onclick="searchBooksHeader()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div id="headerSearchSuggestions" class="search-suggestions"></div>
+                </div>
+                <div class="nav-icons">
+                    <a href="profile.html" class="nav-icon-link" id="profileIcon">
+                        <i class="fas fa-user"></i>
+                    </a>
+                    <a href="wishlist.html" class="nav-icon-link">
+                        <i class="fas fa-heart"></i>
+                        <span class="wishlist-count">0</span>
+                    </a>
+                    <a href="cart.html" class="nav-icon-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count">0</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Admin Dashboard -->
+    <div class="admin-dashboard" id="adminDashboard">
+        <!-- Sidebar -->
+        <div class="admin-sidebar">
+            <h3><i class="fas fa-tachometer-alt"></i> Admin Panel</h3>
+            <ul class="admin-nav">
+                <li><a href="#" class="active" data-section="dashboard" onclick="showAdminSection(event, 'dashboard')">
+                    <i class="fas fa-chart-bar"></i> Dashboard
+                </a></li>
+                <li><a href="#" data-section="users" onclick="showAdminSection(event, 'users')">
+                    <i class="fas fa-users"></i> Users
+                </a></li>
+                <li><a href="#" data-section="books" onclick="showAdminSection(event, 'books')">
+                    <i class="fas fa-book"></i> Books
+                </a></li>
+                <li><a href="#" data-section="messages" onclick="showAdminSection(event, 'messages')">
+                    <i class="fas fa-envelope"></i> Messages
+                </a></li>
+                <li><a href="#" data-section="reviews" onclick="showAdminSection(event, 'reviews')">
+                    <i class="fas fa-star"></i> Reviews
+                </a></li>
+                <li><a href="#" data-section="authorApprovals" onclick="showAdminSection(event, 'authorApprovals')">
+                    <i class="fas fa-user-check"></i> Author Approvals
+                </a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="admin-content">
+            <!-- Access Check -->
+            <div id="accessDenied" class="hidden">
+                <div class="alert alert-error">
+                    <h3>Access Denied</h3>
+                    <p>You need admin privileges to access this page.</p>
+                    <a href="login.html" class="btn btn-primary">Login as Admin</a>
+                </div>
+            </div>
+
+            <!-- Dashboard Section -->
+            <div id="dashboardSection" class="admin-section">
+                <h2>Dashboard Overview</h2>
+                <div class="admin-stats" id="adminStats">
+                    <!-- Stats will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Users Section -->
+            <div id="usersSection" class="admin-section hidden">
+                <h2>User Management</h2>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTable">
+                            <!-- Users will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Books Section -->
+            <div id="booksSection" class="admin-section hidden">
+                <h2>Book Management</h2>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Title</th>
+                                <th>Author</th>
+                                <th>Genre</th>
+                                <th>Year</th>
+                                <th>Price</th>
+                                <th>Rating</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="booksTable">
+                            <!-- Books will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Messages Section -->
+            <div id="messagesSection" class="admin-section hidden">
+                <h2>Contact Messages</h2>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Subject</th>
+                                <th>Message</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="messagesTable">
+                            <!-- Messages will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reviews Section -->
+            <div id="reviewsSection" class="admin-section hidden">
+                <h2>Book Reviews</h2>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Book</th>
+                                <th>User</th>
+                                <th>Rating</th>
+                                <th>Comment</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reviewsTable">
+                            <!-- Reviews will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Author Approvals Section -->
+            <div id="authorApprovalsSection" class="admin-section hidden">
+                <h2 class="author-approvals-title">Pending Author Approvals</h2>
+                <div class="data-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Signup Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingAuthorsTable">
+                            <!-- Pending authors will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+    </div>
+</div>
+
+<!-- Modal for Messages and Reviews -->
+<div id="adminModal" class="admin-modal hidden">
+    <div class="admin-modal-content">
+        <span class="admin-modal-close" onclick="closeAdminModal()">&times;</span>
+        <div id="adminModalBody">
+            <!-- Content will be populated by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PaperTrail</h3>
+                    <p>Your digital library companion</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="explore.html">Browse Books</a></li>
+                        <li><a href="add-book.html">Add Book</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="login.html">Login</a></li>
+                        <li><a href="login.html">Sign Up</a></li>
+                        <li><a href="cart.html">Cart</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PaperTrail. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/data.js"></script>
+</body>
+</html>
+
+

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore Books - PaperTrail</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html"><h2><i class="fas fa-book"></i> PaperTrail</h2></a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="explore.html" class="nav-link active">Browse</a>
+                </li>
+                <li class="nav-item">
+                    <a href="add-book.html" class="nav-link">Add Book</a>
+                </li>
+                <li class="nav-item">
+                    <a href="contact.html" class="nav-link">Contact</a>
+                </li>
+            </ul>
+            <div class="nav-right">
+                <div class="nav-search-container">
+                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off">
+                    <button class="nav-search-btn" onclick="searchBooksHeader()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div id="headerSearchSuggestions" class="search-suggestions"></div>
+                </div>
+                <div class="nav-icons">
+                    <a href="profile.html" class="nav-icon-link" id="profileIcon">
+                        <i class="fas fa-user"></i>
+                    </a>
+                    <a href="wishlist.html" class="nav-icon-link">
+                        <i class="fas fa-heart"></i>
+                        <span class="wishlist-count">0</span>
+                    </a>
+                    <a href="cart.html" class="nav-icon-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count">0</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Explore Books</h1>
+            <p>Discover your next favorite read from our extensive collection</p>
+        </div>
+    </section>
+
+    <!-- Filters and Search -->
+    <section class="page-content">
+        <div class="container">
+            <!-- Search Bar -->
+            <div class="search-container" style="max-width: 100%; margin-bottom: 30px;">
+                <input type="text" id="exploreSearchInput" placeholder="Search for books, authors, or genres..." autocomplete="off">
+                <button class="search-btn" onclick="searchBooksExplore()">
+                    <i class="fas fa-search"></i>
+                </button>
+                <div id="exploreSearchSuggestions" class="search-suggestions"></div>
+            </div>
+            
+            <div class="filters-section">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="genreFilter">Genre</label>
+                        <select id="genreFilter">
+                            <option value="">All Genres</option>
+                            <option value="Fiction">Fiction</option>
+                            <option value="Fantasy">Fantasy</option>
+                            <option value="Romance">Romance</option>
+                            <option value="Mystery">Mystery</option>
+                            <option value="Dystopian Fiction">Dystopian Fiction</option>
+                            <option value="Philosophy">Philosophy</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="yearFilter">Year</label>
+                        <select id="yearFilter">
+                            <option value="">All Years</option>
+                            <option value="2020">2020+</option>
+                            <option value="2010">2010-2019</option>
+                            <option value="2000">2000-2009</option>
+                            <option value="1990">1990-1999</option>
+                            <option value="1980">1980-1989</option>
+                            <option value="1970">1970-1979</option>
+                            <option value="1960">1960-1969</option>
+                            <option value="1950">1950-1959</option>
+                            <option value="1940">1940-1949</option>
+                            <option value="1930">1930-1939</option>
+                            <option value="1920">1920-1929</option>
+                            <option value="1910">1910-1919</option>
+                            <option value="1900">1900-1909</option>
+                            <option value="1800">1800-1899</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="authorFilter">Author</label>
+                        <input type="text" id="authorFilter" placeholder="Search by author..." autocomplete="off">
+                    </div>
+                    <div class="filter-group">
+                        <label for="priceFilter">Price Range</label>
+                        <select id="priceFilter">
+                            <option value="">All Prices</option>
+                            <option value="0-10">$0 - $10</option>
+                            <option value="10-15">$10 - $15</option>
+                            <option value="15-20">$15 - $20</option>
+                            <option value="20">$20+</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="sortFilter">Sort By</label>
+                        <select id="sortFilter">
+                            <option value="title">Title A-Z</option>
+                            <option value="author">Author A-Z</option>
+                            <option value="year">Year (Newest)</option>
+                            <option value="price-low">Price (Low to High)</option>
+                            <option value="price-high">Price (High to Low)</option>
+                            <option value="rating">Rating (Highest)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- View Toggle -->
+            <div class="view-toggle">
+                <button class="view-btn active" id="gridView">
+                    <i class="fas fa-th"></i> Grid View
+                </button>
+                <button class="view-btn" id="listView">
+                    <i class="fas fa-list"></i> List View
+                </button>
+            </div>
+
+            <!-- Books Container -->
+            <div id="booksContainer" class="books-grid">
+                <!-- Books will be populated by JavaScript -->
+            </div>
+
+            <!-- Load More Button -->
+            <div class="load-more">
+                <button class="btn btn-primary" id="loadMoreBtn" onclick="loadMoreBooks()">
+                    Load More Books
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PaperTrail</h3>
+                    <p>Your digital library companion</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="explore.html">Browse Books</a></li>
+                        <li><a href="add-book.html">Add Book</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="login.html">Login</a></li>
+                        <li><a href="login.html">Sign Up</a></li>
+                        <li><a href="cart.html">Cart</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PaperTrail. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/data.js"></script>
+</body>
+</html>

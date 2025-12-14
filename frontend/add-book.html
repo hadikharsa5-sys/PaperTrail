@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Book - PaperTrail</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <a href="index.html"><h2><i class="fas fa-book"></i> PaperTrail</h2></a>
+            </div>
+            <ul class="nav-menu">
+                <li class="nav-item">
+                    <a href="index.html" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="explore.html" class="nav-link">Browse</a>
+                </li>
+                <li class="nav-item">
+                    <a href="add-book.html" class="nav-link active">Add Book</a>
+                </li>
+                <li class="nav-item">
+                    <a href="contact.html" class="nav-link">Contact</a>
+                </li>
+            </ul>
+            <div class="nav-right">
+                <div class="nav-search-container">
+                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off">
+                    <button class="nav-search-btn" onclick="searchBooksHeader()">
+                        <i class="fas fa-search"></i>
+                    </button>
+                    <div id="headerSearchSuggestions" class="search-suggestions"></div>
+                </div>
+                <div class="nav-icons">
+                    <a href="profile.html" class="nav-icon-link" id="profileIcon">
+                        <i class="fas fa-user"></i>
+                    </a>
+                    <a href="wishlist.html" class="nav-icon-link">
+                        <i class="fas fa-heart"></i>
+                        <span class="wishlist-count">0</span>
+                    </a>
+                    <a href="cart.html" class="nav-icon-link">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span class="cart-count">0</span>
+                    </a>
+                </div>
+            </div>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="page-header">
+        <div class="container">
+            <h1>Add Book</h1>
+            <p>Share your literary works with the PaperTrail community</p>
+        </div>
+    </section>
+
+    <!-- Page Content -->
+    <section class="page-content">
+        <div class="container">
+            <!-- Login Check -->
+            <div id="loginRequired" class="hidden">
+                <div class="alert alert-info">
+                    <h3>Login Required</h3>
+                    <p>You need to be logged in as an author to add books to the library.</p>
+                    <a href="login.html" class="btn btn-primary">Login / Sign Up</a>
+                </div>
+            </div>
+
+            <!-- Add Book Form -->
+            <div id="addBookSection" class="hidden">
+                <div class="form-container">
+                    <h2>Add New Book</h2>
+                    <form id="addBookForm" novalidate>
+                        <div class="form-group">
+                            <label for="bookTitle">Book Title *</label>
+                            <input type="text" id="bookTitle" name="title" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bookAuthor">Author *</label>
+                            <input type="text" id="bookAuthor" name="author" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bookGenre">Genre *</label>
+                            <select id="bookGenre" name="genre" required>
+                                <option value="">Select Genre</option>
+                                <option value="Fiction">Fiction</option>
+                                <option value="Fantasy">Fantasy</option>
+                                <option value="Romance">Romance</option>
+                                <option value="Mystery">Mystery</option>
+                                <option value="Dystopian Fiction">Dystopian Fiction</option>
+                                <option value="Philosophy">Philosophy</option>
+                                <option value="Science Fiction">Science Fiction</option>
+                                <option value="Thriller">Thriller</option>
+                                <option value="Biography">Biography</option>
+                                <option value="History">History</option>
+                                <option value="Self-Help">Self-Help</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bookYear">Publication Year *</label>
+                            <input type="number" id="bookYear" name="year" min="1800" max="2024" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bookPrice">Price ($) *</label>
+                            <input type="number" id="bookPrice" name="price" min="0" step="0.01" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="bookDescription">Description / Blurb *</label>
+                            <textarea id="bookDescription" name="description" rows="5" required></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                        <label for="cover">Book Cover *</label>
+                        <input type="file" id="cover" name="cover" accept="image/*">
+                        </div>
+
+                        
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Add Book
+                            </button>
+                            <button type="reset" class="btn btn-secondary">
+                                <i class="fas fa-undo"></i> Reset Form
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- My Books Section -->
+            <div id="myBooksSection" class="hidden">
+                <div class="my-books-container">
+                    <h2>My Books</h2>
+                    <div id="myBooksList">
+                        <!-- User's books will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>PaperTrail</h3>
+                    <p>Your digital library companion</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="explore.html">Browse Books</a></li>
+                        <li><a href="add-book.html">Add Book</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Account</h4>
+                    <ul>
+                        <li><a href="login.html">Login</a></li>
+                        <li><a href="login.html">Sign Up</a></li>
+                        <li><a href="cart.html">Cart</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 PaperTrail. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/main.js"></script>
+    <script src="js/data.js"></script>
+</body>
+</html>
