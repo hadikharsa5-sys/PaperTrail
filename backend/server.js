@@ -35,16 +35,17 @@ app.use(helmet({
   },
   
   // Permissions Policy (formerly Feature-Policy) - disable unnecessary APIs
+  // Empty array [] disables the feature entirely
   permissionsPolicy: {
     features: {
-      geolocation: ["'none'"],
-      microphone: ["'none'"],
-      camera: ["'none'"],
-      payment: ["'none'"],
-      usb: ["'none'"],
-      magnetometer: ["'none'"],
-      gyroscope: ["'none'"],
-      accelerometer: ["'none'"]
+      geolocation: [],
+      microphone: [],
+      camera: [],
+      payment: [],
+      usb: [],
+      magnetometer: [],
+      gyroscope: [],
+      accelerometer: []
     }
   },
   
