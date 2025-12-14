@@ -271,18 +271,36 @@ router.post('/refresh', async (req, res, next) => {
 });
 
 // POST /api/auth/logout — clear the auth cookie
-router.post('/logout', async (req, res, next) => {
+router.post('/logout', async (req, res) => {
   try {
     const refresh = req.cookies && req.cookies.refreshToken;
-    if (refresh) await revokeRefreshToken(refresh);
-    // Clear cookies using centralized options for consistency
-    res.clearCookie('token', getAuthCookieOptions());
-    res.clearCookie('refreshToken', getAuthCookieOptions());
-    res.json({ success: true });
+
+    if (refresh) {
+      try {
+        await revokeRefreshToken(refresh);
+      } catch (revErr) {
+        // Log revoke failures but do not fail the logout response
+        console.error('Failed to revoke refresh token during logout:', revErr);
+      }
+    }
+
+    // Attempt to clear cookies; log any failures but still respond
+    try {
+      const cookieOptions = getAuthCookieOptions();
+      res.clearCookie('token', cookieOptions);
+      res.clearCookie('refreshToken', cookieOptions);
+    } catch (clearErr) {
+      console.error('Failed to clear cookies during logout:', clearErr);
+    }
+
+    return res.json({ success: true });
   } catch (err) {
-    console.error('Error during logout:', err);
-    next(err);
+    // Unexpected error: log and return a safe message rather than letting
+    // the centralized error handler produce a stack trace response.
+    console.error('Unexpected logout error:', err);
+    return res.status(500).json({ error: 'Logout failed' });
   }
 });
+
 
 module.exports = router;
