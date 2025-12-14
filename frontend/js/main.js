@@ -1,6 +1,7 @@
 // Main JavaScript functionality for PaperTrail
 
 // Global variables
+const API_BASE = "https://papertrail-jdcp.onrender.com";
 let currentSlide = 0;
 let booksPerPage = 8;
 let currentPage = 1;
@@ -22,7 +23,9 @@ function escapeHtml(str) {
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     // Fetch CSRF token, then check backend for authenticated user, then init app
-    fetch('/api/csrf-token', { credentials: 'include' })
+    fetch(`${API_BASE}/csrf-token`, {
+  credentials: "include"
+})
         .then(async (res) => {
             if (res.ok) {
                 const d = await res.json();
@@ -35,12 +38,12 @@ document.addEventListener('DOMContentLoaded', function() {
             window._csrfToken = null;
         }).finally(async () => {
             try {
-                let res = await fetch('/api/auth/me', { credentials: 'include' });
+                let res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
                 if (res.status === 401) {
                     // try to refresh
-                    const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } });
+                    const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } });
                     if (refreshRes.ok) {
-                        res = await fetch('/api/auth/me', { credentials: 'include' });
+                        res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
                     }
                 }
                 if (res.ok) {
@@ -63,10 +66,20 @@ function initializeApp() {
     initializeNavigation();
     initializeSearchSuggestions('searchInput', 'searchSuggestions', searchBooks);
     initializeHeaderSearch();
+    // Attach event listeners for buttons that were moved out of inline handlers
+    const headerSearchBtn = document.getElementById('headerSearchBtn');
+    if (headerSearchBtn) headerSearchBtn.addEventListener('click', searchBooksHeader);
+    const heroSearchBtn = document.getElementById('heroSearchBtn');
+    if (heroSearchBtn) heroSearchBtn.addEventListener('click', searchBooks);
     
     if (document.getElementById('featuredCarousel')) {
         initializeCarousel();
         loadTrendingBooks();
+        // Carousel controls (attached here to avoid inline onclicks)
+        const prevBtn = document.getElementById('carouselPrev');
+        const nextBtn = document.getElementById('carouselNext');
+        if (prevBtn) prevBtn.addEventListener('click', () => changeSlide(-1));
+        if (nextBtn) nextBtn.addEventListener('click', () => changeSlide(1));
     }
     if (document.getElementById('booksContainer')) initializeExplorePage();
     if (document.getElementById('bookDetail')) initializeBookDetail();
@@ -92,8 +105,14 @@ function initializeDarkMode() {
     if (navRight && searchContainer && !document.querySelector('.theme-toggle')) {
         const themeToggle = document.createElement('button');
         themeToggle.className = 'theme-toggle';
-        themeToggle.onclick = toggleDarkMode;
-        themeToggle.innerHTML = `<i class="fas ${savedTheme === 'dark' ? 'fa-sun' : 'fa-moon'}"></i><span>${savedTheme === 'dark' ? 'Light' : 'Dark'}</span>`;
+        themeToggle.addEventListener('click', toggleDarkMode);
+        const icon = document.createElement('i');
+        icon.className = `fas ${savedTheme === 'dark' ? 'fa-sun' : 'fa-moon'}`;
+        icon.setAttribute('aria-hidden', 'true');
+        const span = document.createElement('span');
+        span.textContent = savedTheme === 'dark' ? 'Light' : 'Dark';
+        themeToggle.appendChild(icon);
+        themeToggle.appendChild(span);
         searchContainer.parentNode.insertBefore(themeToggle, searchContainer.nextSibling);
     }
 }
@@ -163,7 +182,7 @@ function hideAdminLink() {
 function logout() {
     document.querySelectorAll('.alert').forEach(alert => alert.remove());
     // Call backend logout to clear cookie
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } })
+    fetch(`${API_BASE}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } })
         .then(() => {
             saveCurrentUser(null);
             updateNavigation();
@@ -1168,7 +1187,7 @@ function handleLogin(e) {
     }
 
     // Call backend login endpoint
-    fetch('/api/auth/login', {
+    fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
         credentials: 'include',
@@ -1298,7 +1317,7 @@ function handleSignup(e) {
     }
     
     // Call backend register endpoint
-    fetch('/api/auth/register', {
+    fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
         credentials: 'include',
@@ -2467,7 +2486,7 @@ function handleLoginModal(e, action, bookId) {
     const username = formData.get('username');
     const password = formData.get('password');
     // Call backend login endpoint
-    fetch('/api/auth/login', {
+    fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
         credentials: 'include',

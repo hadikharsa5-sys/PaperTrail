@@ -30,11 +30,12 @@
             </ul>
             <div class="nav-right">
                 <div class="nav-search-container">
-                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off">
-                    <button class="nav-search-btn" onclick="searchBooksHeader()">
-                        <i class="fas fa-search"></i>
+                    <label for="headerSearchInput" class="sr-only">Search books</label>
+                    <input type="text" id="headerSearchInput" placeholder="Search books..." class="nav-search-input" autocomplete="off" aria-label="Search books">
+                    <button id="headerSearchBtn" class="nav-search-btn" aria-label="Search">
+                        <i class="fas fa-search" aria-hidden="true"></i>
                     </button>
-                    <div id="headerSearchSuggestions" class="search-suggestions"></div>
+                    <div id="headerSearchSuggestions" class="search-suggestions" aria-live="polite"></div>
                 </div>
                 <div class="nav-icons">
                     <a href="profile.html" class="nav-icon-link" id="profileIcon">
@@ -60,17 +61,18 @@
 
     <!-- Hero Section -->
     <section class="hero">
-        <div class="hero-content">
+            <div class="hero-content" id="main-content">
             <h1>Welcome to PaperTrail</h1>
             <p>Discover, explore, and manage your digital library collection</p>
             
             <!-- Search Bar -->
             <div class="search-container">
-                <input type="text" id="searchInput" placeholder="Search for books, authors, or genres..." autocomplete="off">
-                <button class="search-btn" onclick="searchBooks()">
-                    <i class="fas fa-search"></i>
+                <label for="searchInput" class="sr-only">Search for books</label>
+                <input type="text" id="searchInput" placeholder="Search for books, authors, or genres..." autocomplete="off" aria-label="Search for books">
+                <button id="heroSearchBtn" class="search-btn" aria-label="Search">
+                    <i class="fas fa-search" aria-hidden="true"></i>
                 </button>
-                <div id="searchSuggestions" class="search-suggestions"></div>
+                <div id="searchSuggestions" class="search-suggestions" aria-live="polite"></div>
             </div>
         </div>
     </section>
@@ -135,10 +137,10 @@
                         </div>
                     </div>
                 </div>
-                <button class="carousel-btn prev" onclick="changeSlide(-1)">
+                <button id="carouselPrev" class="carousel-btn prev" aria-label="Previous slide">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <button class="carousel-btn next" onclick="changeSlide(1)">
+                <button id="carouselNext" class="carousel-btn next" aria-label="Next slide">
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
