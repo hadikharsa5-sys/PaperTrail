@@ -4,9 +4,11 @@ const cors = require("cors");
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-const csurf = require('csurf');
+const crypto = require('crypto');
 const authRoutes = require("./routes/auth");
 const bookRoutes = require("./routes/books");
+const cartRoutes = require("./routes/cart");
+const wishlistRoutes = require("./routes/wishlist");
 
 const app = express();
 
@@ -84,8 +86,8 @@ app.use(
       defaultSrc: ["'self'"],
       // Scripts: only from self and frontend (no unsafe-inline or unsafe-eval)
       scriptSrc: ["'self'", FRONTEND_ORIGIN],
-      // Styles: frontend requires unsafe-inline + Font Awesome CDN
-      styleSrc: ["'self'", FRONTEND_ORIGIN, "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      // Styles: Font Awesome CDN (unsafe-inline removed - all styles use CSS classes)
+      styleSrc: ["'self'", FRONTEND_ORIGIN, "https://cdnjs.cloudflare.com"],
       // Images: self, data URIs, frontend, and placeholder service (for book covers)
       imgSrc: ["'self'", 'data:', FRONTEND_ORIGIN, "https://via.placeholder.com"],
       // Connect: API backend + frontend (explicit, no wildcards)
@@ -114,17 +116,63 @@ app.use(cookieParser());
 // Limit JSON body size to mitigate large payload attacks
 app.use(express.json({ limit: '10kb' }));
 
-// CSRF protection: create middleware but do not apply globally.
-// Note: CSRF cookie must be readable by JavaScript (httpOnly: false) for frontend to send token
-// Security: Cookie is still protected by SameSite and Secure flags
-const csrfProtection = csurf({ 
-  cookie: { 
+// CSRF protection: Double-submit cookie pattern (replaces csurf)
+// Token stored in cookie (readable by JS) and validated against X-CSRF-Token header
+function generateCSRFToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+function getCSRFTokenCookieOptions() {
+  return {
     httpOnly: false, // Required: frontend JS must read CSRF token
     sameSite: isProduction ? 'none' : 'lax', // Match auth cookie behavior
     secure: isProduction, // HTTPS only in production
-    path: '/' // Minimal path scope
-  } 
-});
+    path: '/', // Minimal path scope
+    maxAge: 60 * 60 * 1000 // 1 hour
+  };
+}
+
+// Middleware: Generate and set CSRF token cookie
+function setCSRFToken(req, res, next) {
+  let token = req.cookies && req.cookies['_csrf'];
+  
+  // Generate new token if missing or invalid format
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) {
+    token = generateCSRFToken();
+    res.cookie('_csrf', token, getCSRFTokenCookieOptions());
+  }
+  
+  // Attach token to request for validation
+  req.csrfToken = token;
+  next();
+}
+
+// Middleware: Validate CSRF token (double-submit cookie pattern)
+function validateCSRFToken(req, res, next) {
+  // Skip CSRF for auth endpoints (login/register/logout/refresh)
+  if (req.path.startsWith('/api/auth')) {
+    return next();
+  }
+  
+  // Only validate state-changing methods
+  if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    return next();
+  }
+  
+  const cookieToken = req.cookies && req.cookies['_csrf'];
+  const headerToken = req.headers['x-csrf-token'];
+  
+  // Both must be present and match
+  if (!cookieToken || !headerToken) {
+    return res.status(403).json({ error: 'CSRF token missing' });
+  }
+  
+  if (cookieToken !== headerToken) {
+    return res.status(403).json({ error: 'CSRF token mismatch' });
+  }
+  
+  next();
+}
 
 // Always allow preflight requests
 app.options('*', cors({
@@ -133,24 +181,11 @@ app.options('*', cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
 }));
 
+// Set CSRF token cookie on all requests (for frontend to read)
+app.use(setCSRFToken);
 
-
-app.use((req, res, next) => {
-  // Always allow preflight
-  if (req.method === 'OPTIONS') return next();
-
-  // ❌ Do NOT CSRF-protect auth endpoints
-  if (req.path.startsWith('/api/auth')) {
-    return next();
-  }
-
-  // ✅ Protect other state-changing routes
-  if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
-    return csrfProtection(req, res, next);
-  }
-
-  next();
-});
+// Validate CSRF token on state-changing requests
+app.use(validateCSRFToken);
 
 
 // Global API rate limiter: reasonable default for general API endpoints
@@ -166,15 +201,23 @@ const apiLimiter = rateLimit({
 app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/books', bookRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
-// Endpoint to fetch a fresh CSRF token (frontend should call this and send token with POSTs)
-app.get('/api/csrf-token', csrfProtection, (req, res) => {
+// Endpoint to fetch CSRF token (for frontend compatibility)
+// Token is already set in cookie via setCSRFToken middleware
+app.get('/api/csrf-token', (req, res) => {
   try {
-    const token = req.csrfToken();
+    const token = req.csrfToken || req.cookies['_csrf'];
+    if (!token) {
+      // Generate if somehow missing
+      const newToken = generateCSRFToken();
+      res.cookie('_csrf', newToken, getCSRFTokenCookieOptions());
+      return res.json({ csrfToken: newToken });
+    }
     res.json({ csrfToken: token });
   } catch (err) {
     console.error('CSRF token error:', err);
-    // Centralized error handler will log details; return a generic message.
     res.status(500).json({ error: 'Could not generate CSRF token' });
   }
 });

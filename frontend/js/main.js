@@ -8,8 +8,22 @@ let currentPage = 1;
 let currentView = 'grid';
 let currentFilters = { genre: '', year: '', author: '', priceRange: '', sortBy: 'title' };
 let searchSuggestionTimeout = null;
-// Keep CSRF token in a safe in-memory variable (not localStorage/sessionStorage)
-let CSRF_TOKEN = null;
+// Helper function to get CSRF token from cookie (double-submit cookie pattern)
+function getCSRFToken() {
+  const name = '_csrf=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const ca = decodedCookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') {
+      c = c.substring(1);
+    }
+    if (c.indexOf(name) === 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return null;
+}
 
 // Simple helper to escape text for safe insertion into HTML
 function escapeHtml(str) {
@@ -24,28 +38,20 @@ function escapeHtml(str) {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Fetch CSRF token, then check backend for authenticated user, then init app
+    // CSRF token is set in cookie by backend on first request
+    // Ensure cookie is set by making a request to csrf-token endpoint
     fetch(`${API_BASE}/api/csrf-token`, { credentials: 'include' })
-        .then(async (res) => {
-            if (res.ok) {
-                const d = await res.json();
-                CSRF_TOKEN = d.csrfToken;
-            } else {
-                CSRF_TOKEN = null;
-            }
-        }).catch(err => {
-            console.warn('CSRF fetch failed', err);
-            CSRF_TOKEN = null;
+        .catch(err => {
+            console.warn('CSRF token initialization failed', err);
         }).finally(async () => {
             try {
                 let res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
                 if (res.status === 401) {
                     // try to refresh
                     const refreshHeaders = {};
-                    if (CSRF_TOKEN) {
-                        refreshHeaders['X-CSRF-Token'] = CSRF_TOKEN;
-                    } else {
-                        console.warn('CSRF token missing when attempting refresh');
+                    const csrfToken = getCSRFToken();
+                    if (csrfToken) {
+                        refreshHeaders['X-CSRF-Token'] = csrfToken;
                     }
                     const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include', headers: refreshHeaders });
                     if (refreshRes.ok) {
@@ -189,10 +195,9 @@ function logout() {
     document.querySelectorAll('.alert').forEach(alert => alert.remove());
     // Call backend logout to clear cookie
     const logoutHeaders = {};
-    if (CSRF_TOKEN) {
-        logoutHeaders['X-CSRF-Token'] = CSRF_TOKEN;
-    } else {
-        console.warn('CSRF token missing when attempting logout');
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+        logoutHeaders['X-CSRF-Token'] = csrfToken;
     }
     fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include', headers: logoutHeaders })
         .then(() => {
@@ -228,7 +233,7 @@ function loadFeaturedCarousel() {
     }
     
     carousel.innerHTML = featuredBooks.map((book, index) => `
-        <div class="carousel-item ${index === 0 ? 'active' : ''}" onclick="viewBookDetail(${book.id})" style="cursor: pointer;">
+        <div class="carousel-item ${index === 0 ? 'active' : ''} cursor-pointer" onclick="viewBookDetail(${book.id})">
             <img src="${escapeHtml(book.cover)}" alt="${escapeHtml(book.title)}" loading="lazy" width="400" height="500">
             <div class="carousel-content">
                 <h3>${escapeHtml(book.title)}</h3>
@@ -455,44 +460,71 @@ function generateStars(rating) {
     return stars;
 }
 
-// Cart functionality
-function addToCart(bookId) {
+// Cart functionality - Backend API calls
+async function addToCart(bookId) {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         showLoginModal('cart', bookId);
         return;
     }
     
-    const cart = getUserCart(currentUser.id);
-    const book = getBooks().find(b => b.id === bookId);
-    if (!book) {
-        showAlert('Book not found', 'error');
-        return;
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfToken = getCSRFToken();
+        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+        
+        const res = await fetch(`${API_BASE}/api/cart`, {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ bookId, quantity: 1 })
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            showAlert(data.error || 'Failed to add to cart', 'error');
+            return;
+        }
+        
+        await updateCartCount();
+        const book = getBooks().find(b => b.id === bookId);
+        showAlert(`${book ? book.title : 'Book'} added to cart`, 'success');
+    } catch (err) {
+        console.error('Add to cart error:', err);
+        showAlert('Failed to add to cart', 'error');
     }
-    
-    const existingItem = cart.find(item => item.bookId === bookId);
-    if (existingItem) {
-        existingItem.quantity += 1;
-    } else {
-        cart.push({ bookId: bookId, quantity: 1, addedAt: new Date().toISOString() });
-    }
-    
-    saveUserCart(currentUser.id, cart);
-    updateCartCount();
-    showAlert(`${book.title} added to cart`, 'success');
 }
 
-function removeFromCart(bookId) {
+async function removeFromCart(itemId) {
     const currentUser = getCurrentUser();
     if (!currentUser) return;
     
-    const cart = getUserCart(currentUser.id);
-    saveUserCart(currentUser.id, cart.filter(item => item.bookId !== bookId));
-    updateCartCount();
-    if (window.location.pathname.includes('cart.html')) loadCart();
+    try {
+        const headers = {};
+        const csrfToken = getCSRFToken();
+        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+        
+        const res = await fetch(`${API_BASE}/api/cart/${itemId}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            showAlert(data.error || 'Failed to remove from cart', 'error');
+            return;
+        }
+        
+        await updateCartCount();
+        if (window.location.pathname.includes('cart.html')) loadCart();
+    } catch (err) {
+        console.error('Remove from cart error:', err);
+        showAlert('Failed to remove from cart', 'error');
+    }
 }
 
-function updateCartCount() {
+async function updateCartCount() {
     const currentUser = getCurrentUser();
     const cartCountElements = document.querySelectorAll('.cart-count');
     
@@ -504,59 +536,129 @@ function updateCartCount() {
         return;
     }
     
-    const totalItems = getUserCart(currentUser.id).reduce((sum, item) => sum + item.quantity, 0);
-    cartCountElements.forEach(element => {
-        element.textContent = totalItems;
-        element.style.display = totalItems > 0 ? 'inline' : 'none';
-    });
+    try {
+        const res = await fetch(`${API_BASE}/api/cart`, {
+            credentials: 'include'
+        });
+        
+        if (res.ok) {
+            const cart = await res.json();
+            const totalItems = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+            cartCountElements.forEach(element => {
+                element.textContent = totalItems;
+                element.style.display = totalItems > 0 ? 'inline' : 'none';
+            });
+        } else {
+            // If error, set to 0
+            cartCountElements.forEach(element => {
+                element.textContent = 0;
+                element.style.display = 'none';
+            });
+        }
+    } catch (err) {
+        console.error('Update cart count error:', err);
+        cartCountElements.forEach(element => {
+            element.textContent = 0;
+            element.style.display = 'none';
+        });
+    }
 }
 
-// Wishlist functionality
-function addToWishlist(bookId) {
+// Wishlist functionality - Backend API calls
+async function addToWishlist(bookId) {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         showLoginModal('wishlist', bookId);
         return;
     }
     
-    const wishlist = getUserWishlist(currentUser.id);
-    const book = getBooks().find(b => b.id === bookId);
-    if (!book) {
-        showAlert('Book not found', 'error');
-        return;
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfToken = getCSRFToken();
+        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+        
+        const res = await fetch(`${API_BASE}/api/wishlist`, {
+            method: 'POST',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ bookId })
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            if (res.status === 409) {
+                showAlert('Book already in wishlist', 'info');
+            } else {
+                showAlert(data.error || 'Failed to add to wishlist', 'error');
+            }
+            return;
+        }
+        
+        await updateWishlistCount();
+        const book = getBooks().find(b => b.id === bookId);
+        showAlert(`${book ? book.title : 'Book'} added to wishlist`, 'success');
+    } catch (err) {
+        console.error('Add to wishlist error:', err);
+        showAlert('Failed to add to wishlist', 'error');
     }
-    
-    if (wishlist.includes(bookId)) {
-        showAlert('Book already in wishlist', 'info');
-        return;
-    }
-    
-    wishlist.push(bookId);
-    saveUserWishlist(currentUser.id, wishlist);
-    updateWishlistCount();
-    showAlert(`${book.title} added to wishlist`, 'success');
 }
 
-function removeFromWishlist(bookId) {
+async function removeFromWishlist(bookId) {
     const currentUser = getCurrentUser();
     if (!currentUser) {
         showAlert('Please login to manage your wishlist', 'error');
         return;
     }
     
-    const wishlist = getUserWishlist(currentUser.id);
-    const updatedWishlist = wishlist.filter(id => id !== bookId);
-    saveUserWishlist(currentUser.id, updatedWishlist);
-    updateWishlistCount();
-    showAlert('Book removed from wishlist', 'success');
-    
-    // Reload wishlist if on wishlist page
-    if (window.location.pathname.includes('wishlist.html') || document.getElementById('wishlistItems')) {
-        loadWishlist();
+    try {
+        // First get wishlist to find item ID
+        const listRes = await fetch(`${API_BASE}/api/wishlist`, {
+            credentials: 'include'
+        });
+        
+        if (!listRes.ok) {
+            showAlert('Failed to load wishlist', 'error');
+            return;
+        }
+        
+        const wishlist = await listRes.json();
+        const item = wishlist.find(w => w.book_id === bookId);
+        
+        if (!item) {
+            showAlert('Item not found in wishlist', 'error');
+            return;
+        }
+        
+        const headers = {};
+        const csrfToken = getCSRFToken();
+        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+        
+        const res = await fetch(`${API_BASE}/api/wishlist/${item.id}`, {
+            method: 'DELETE',
+            credentials: 'include',
+            headers
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            showAlert(data.error || 'Failed to remove from wishlist', 'error');
+            return;
+        }
+        
+        await updateWishlistCount();
+        showAlert('Book removed from wishlist', 'success');
+        
+        // Reload wishlist if on wishlist page
+        if (window.location.pathname.includes('wishlist.html') || document.getElementById('wishlistItems')) {
+            loadWishlist();
+        }
+    } catch (err) {
+        console.error('Remove from wishlist error:', err);
+        showAlert('Failed to remove from wishlist', 'error');
     }
 }
 
-function updateWishlistCount() {
+async function updateWishlistCount() {
     const currentUser = getCurrentUser();
     const wishlistCountElements = document.querySelectorAll('.wishlist-count');
     
@@ -568,11 +670,31 @@ function updateWishlistCount() {
         return;
     }
     
-    const count = getUserWishlist(currentUser.id).length;
-    wishlistCountElements.forEach(element => {
-        element.textContent = count;
-        element.style.display = count > 0 ? 'inline' : 'none';
-    });
+    try {
+        const res = await fetch(`${API_BASE}/api/wishlist`, {
+            credentials: 'include'
+        });
+        
+        if (res.ok) {
+            const wishlist = await res.json();
+            const count = wishlist.length;
+            wishlistCountElements.forEach(element => {
+                element.textContent = count;
+                element.style.display = count > 0 ? 'inline' : 'none';
+            });
+        } else {
+            wishlistCountElements.forEach(element => {
+                element.textContent = 0;
+                element.style.display = 'none';
+            });
+        }
+    } catch (err) {
+        console.error('Update wishlist count error:', err);
+        wishlistCountElements.forEach(element => {
+            element.textContent = 0;
+            element.style.display = 'none';
+        });
+    }
 }
 
 // Book detail functionality
@@ -661,7 +783,7 @@ function loadBookReviews(bookId) {
     if (currentUser) {
         if (userHasReviewed) {
             reviewsHTML = `
-                <div style="margin-bottom: 20px;">
+                <div class="margin-bottom-20">
                     <button class="btn btn-outline" onclick="showAddReviewModal(${bookId})">
                         <i class="fas fa-edit"></i> Edit Your Review
                     </button>
@@ -670,7 +792,7 @@ function loadBookReviews(bookId) {
             `;
         } else {
             reviewsHTML = `
-                <div style="margin-bottom: 20px;">
+                <div class="margin-bottom-20">
                     <button class="btn btn-primary" onclick="showAddReviewModal(${bookId})">
                         <i class="fas fa-star"></i> Add Your Review
                     </button>
@@ -680,7 +802,7 @@ function loadBookReviews(bookId) {
         }
     } else {
         reviewsHTML = `
-            <div style="margin-bottom: 20px;">
+            <div class="margin-bottom-20">
                 <button class="btn btn-primary" onclick="showLoginModal('review', ${bookId})">
                     <i class="fas fa-star"></i> Login to Add Review
                 </button>
@@ -1105,7 +1227,7 @@ function loadUserBooks() {
                 <div class="book-card">
                     <img src="${book.cover}" alt="${book.title}" loading="lazy" width="300" height="400" onclick="viewBookDetail(${book.id})">
                     <div class="book-info">
-                        <h3 onclick="viewBookDetail(${book.id})" style="cursor: pointer;">${book.title}</h3>
+                        <h3 class="cursor-pointer" onclick="viewBookDetail(${book.id})">${book.title}</h3>
                         <p>by ${book.author}</p>
                         <p>${book.genre} • ${book.year}</p>
                         <div class="book-price">$${book.price.toFixed(2)}</div>
@@ -1200,10 +1322,9 @@ function handleLogin(e) {
 
     // Call backend login endpoint
     const loginHeaders = { 'Content-Type': 'application/json' };
-    if (CSRF_TOKEN) {
-        loginHeaders['X-CSRF-Token'] = CSRF_TOKEN;
-    } else {
-        console.warn('CSRF token missing when attempting login');
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+        loginHeaders['X-CSRF-Token'] = csrfToken;
     }
     fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
@@ -1336,10 +1457,9 @@ function handleSignup(e) {
     
     // Call backend register endpoint
     const registerHeaders = { 'Content-Type': 'application/json' };
-    if (CSRF_TOKEN) {
-        registerHeaders['X-CSRF-Token'] = CSRF_TOKEN;
-    } else {
-        console.warn('CSRF token missing when attempting registration');
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+        registerHeaders['X-CSRF-Token'] = csrfToken;
     }
     fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
@@ -1475,7 +1595,7 @@ function handleContactForm(e) {
 
 
 // Cart Page Functionality
-function loadCart() {
+async function loadCart() {
     const currentUser = getCurrentUser();
     
     if (!currentUser) {
@@ -1483,83 +1603,107 @@ function loadCart() {
         return;
     }
     
-    document.getElementById('cartContent').classList.remove('hidden');
-    
-    const cart = getUserCart(currentUser.id);
-    const books = getBooks();
-    
-    if (cart.length === 0) {
-        document.getElementById('emptyCart').classList.remove('hidden');
-        document.getElementById('cartContent').classList.add('hidden');
-        return;
-    }
-    
-    const cartItems = cart.map(item => {
-        const book = books.find(b => b.id === item.bookId);
-        return { ...item, book };
-    }).filter(item => item.book);
-    
-    const container = document.getElementById('cartItems');
-    container.innerHTML = cartItems.map(item => `
-        <div class="cart-item">
-            <img src="${item.book.cover}" alt="${item.book.title}" loading="lazy" width="150" height="200">
-            <div class="cart-item-info">
-                <h3>${item.book.title}</h3>
-                <p>by ${item.book.author}</p>
-                <p class="price">$${item.book.price}</p>
+    try {
+        const res = await fetch(`${API_BASE}/api/cart`, {
+            credentials: 'include'
+        });
+        
+        if (!res.ok) {
+            throw new Error('Failed to load cart');
+        }
+        
+        const cart = await res.json();
+        
+        if (cart.length === 0) {
+            document.getElementById('emptyCart').classList.remove('hidden');
+            document.getElementById('cartContent').classList.add('hidden');
+            return;
+        }
+        
+        document.getElementById('emptyCart').classList.add('hidden');
+        document.getElementById('cartContent').classList.remove('hidden');
+        
+        const container = document.getElementById('cartItems');
+        container.innerHTML = cart.map(item => `
+            <div class="cart-item">
+                <img src="${escapeHtml(item.cover)}" alt="${escapeHtml(item.title)}" loading="lazy" width="150" height="200">
+                <div class="cart-item-info">
+                    <h3>${escapeHtml(item.title)}</h3>
+                    <p>by ${escapeHtml(item.author)}</p>
+                    <p class="price">$${parseFloat(item.price || 0).toFixed(2)}</p>
+                </div>
+                <div class="cart-item-controls">
+                    <button onclick="updateCartQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                    <span>${item.quantity}</span>
+                    <button onclick="updateCartQuantity(${item.id}, ${item.quantity + 1})">+</button>
+                    <button class="btn btn-secondary btn-small" onclick="removeFromCart(${item.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
             </div>
-            <div class="cart-item-controls">
-                <button onclick="updateCartQuantity(${item.bookId}, ${item.quantity - 1})">-</button>
-                <span>${item.quantity}</span>
-                <button onclick="updateCartQuantity(${item.bookId}, ${item.quantity + 1})">+</button>
-                <button class="btn btn-secondary btn-small" onclick="removeFromCart(${item.bookId})">
-                    <i class="fas fa-trash"></i>
+        `).join('');
+        
+        const total = cart.reduce((sum, item) => sum + (parseFloat(item.price || 0) * item.quantity), 0);
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        
+        document.getElementById('cartSummary').innerHTML = `
+            <div class="cart-summary-content">
+                <h3>Order Summary</h3>
+                <div class="summary-row">
+                    <span>Items (${totalItems}):</span>
+                    <span>$${total.toFixed(2)}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Shipping:</span>
+                    <span>Free</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total:</span>
+                    <span>$${total.toFixed(2)}</span>
+                </div>
+                <button class="btn btn-primary btn-full" onclick="checkout()">
+                    <i class="fas fa-credit-card"></i> Proceed to Checkout
                 </button>
             </div>
-        </div>
-    `).join('');
-    
-    const total = cartItems.reduce((sum, item) => sum + (item.book.price * item.quantity), 0);
-    const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-    
-    document.getElementById('cartSummary').innerHTML = `
-        <div class="cart-summary-content">
-            <h3>Order Summary</h3>
-            <div class="summary-row">
-                <span>Items (${totalItems}):</span>
-                <span>$${total.toFixed(2)}</span>
-            </div>
-            <div class="summary-row">
-                <span>Shipping:</span>
-                <span>Free</span>
-            </div>
-            <div class="summary-row total">
-                <span>Total:</span>
-                <span>$${total.toFixed(2)}</span>
-            </div>
-            <button class="btn btn-primary btn-full" onclick="checkout()">
-                <i class="fas fa-credit-card"></i> Proceed to Checkout
-            </button>
-        </div>
-    `;
+        `;
+    } catch (err) {
+        console.error('Load cart error:', err);
+        showAlert('Failed to load cart', 'error');
+    }
 }
 
-function updateCartQuantity(bookId, newQuantity) {
+async function updateCartQuantity(itemId, newQuantity) {
     if (newQuantity <= 0) {
-        removeFromCart(bookId);
+        await removeFromCart(itemId);
         return;
     }
     
     const currentUser = getCurrentUser();
     if (!currentUser) return;
     
-    const cart = getUserCart(currentUser.id);
-    const item = cart.find(item => item.bookId === bookId);
-    if (item) {
-        item.quantity = newQuantity;
-        saveUserCart(currentUser.id, cart);
-        updateCartCount();
-        loadCart();
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        const csrfToken = getCSRFToken();
+        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+        
+        const res = await fetch(`${API_BASE}/api/cart/${itemId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers,
+            body: JSON.stringify({ quantity: newQuantity })
+        });
+        
+        if (!res.ok) {
+            const data = await res.json();
+            showAlert(data.error || 'Failed to update quantity', 'error');
+            return;
+        }
+        
+        await updateCartCount();
+        await loadCart();
+    } catch (err) {
+        console.error('Update cart quantity error:', err);
+        showAlert('Failed to update quantity', 'error');
     }
 }
 
@@ -1593,7 +1737,7 @@ function createWishlistBookCard(book) {
     `;
 }
 
-function loadWishlist() {
+async function loadWishlist() {
     const currentUser = getCurrentUser();
     
     if (!currentUser) {
@@ -1601,23 +1745,47 @@ function loadWishlist() {
         return;
     }
     
-    document.getElementById('wishlistContent').classList.remove('hidden');
-    
-    const wishlist = getUserWishlist(currentUser.id);
-    const books = getBooks();
-    
-    if (wishlist.length === 0) {
-        document.getElementById('emptyWishlist').classList.remove('hidden');
-        document.getElementById('wishlistContent').classList.add('hidden');
-        return;
+    try {
+        const res = await fetch(`${API_BASE}/api/wishlist`, {
+            credentials: 'include'
+        });
+        
+        if (!res.ok) {
+            throw new Error('Failed to load wishlist');
+        }
+        
+        const wishlist = await res.json();
+        
+        if (wishlist.length === 0) {
+            document.getElementById('emptyWishlist').classList.remove('hidden');
+            document.getElementById('wishlistContent').classList.add('hidden');
+            return;
+        }
+        
+        document.getElementById('emptyWishlist').classList.add('hidden');
+        document.getElementById('wishlistContent').classList.remove('hidden');
+        
+        // Convert backend format to frontend format for compatibility
+        const wishlistBooks = wishlist.map(item => ({
+            id: item.book_id,
+            title: item.title,
+            author: item.author,
+            price: item.price,
+            cover: item.cover,
+            genre: item.genre,
+            year: item.year,
+            rating: 0, // Default if not in response
+            reviews: 0
+        }));
+        
+        const container = document.getElementById('wishlistItems');
+        container.innerHTML = wishlistBooks.map(book => createWishlistBookCard(book)).join('');
+        
+        if (wishlistBooks.length > 0) loadRecommendedBooks(wishlistBooks);
+    } catch (err) {
+        console.error('Load wishlist error:', err);
+        showAlert('Failed to load wishlist', 'error');
     }
-    
-    const wishlistBooks = wishlist.map(bookId => books.find(b => b.id === bookId)).filter(book => book);
-    
-    const container = document.getElementById('wishlistItems');
-    container.innerHTML = wishlistBooks.map(book => createWishlistBookCard(book)).join('');
-    
-    if (wishlistBooks.length > 0) loadRecommendedBooks(wishlistBooks);
 }
 
 function loadRecommendedBooks(wishlistBooks) {
@@ -1651,7 +1819,7 @@ function loadRecommendedBooks(wishlistBooks) {
         recommendedSection.className = 'recommended-section';
         recommendedSection.innerHTML = `
             <h2>Recommended For You</h2>
-            <p style="text-align: center; margin-bottom: 30px; color: var(--text-color); opacity: 0.8;">Based on your wishlist, you might also like:</p>
+            <p class="text-align-center margin-bottom-30 text-color-opacity-8">Based on your wishlist, you might also like:</p>
             <div class="books-grid">
                 ${recommended.map(book => createBookCard(book)).join('')}
             </div>
@@ -1728,7 +1896,7 @@ function loadAdminTable(containerId, data, columns, emptyMessage) {
     if (!container) return;
     
     if (data.length === 0) {
-        container.innerHTML = `<tr><td colspan="${columns.length + 1}" style="text-align: center;">${emptyMessage}</td></tr>`;
+        container.innerHTML = `<tr><td colspan="${columns.length + 1}" class="text-align-center">${emptyMessage}</td></tr>`;
         return;
     }
     
@@ -1855,7 +2023,7 @@ function loadAdminMessages() {
             key: 'message',
             render: (msg) => {
                 const text = msg.message || '';
-                return `<td style="cursor: pointer;" onclick="viewMessageDetail(${msg.id})">${text.substring(0, 50)}${text.length > 50 ? '...' : ''}</td>`;
+                return `<td class="cursor-pointer" onclick="viewMessageDetail(${msg.id})">${text.substring(0, 50)}${text.length > 50 ? '...' : ''}</td>`;
             }
         },
         {
@@ -1936,7 +2104,7 @@ function loadAdminReviews() {
             key: 'comment',
             render: (review) => {
                 const text = review.comment || '';
-                return `<td style="cursor: pointer;" onclick="viewReviewDetail(${review.id})">${text.substring(0, 50)}${text.length > 50 ? '...' : ''}</td>`;
+                return `<td class="cursor-pointer" onclick="viewReviewDetail(${review.id})">${text.substring(0, 50)}${text.length > 50 ? '...' : ''}</td>`;
             }
         },
         {
@@ -2112,7 +2280,7 @@ function viewUserDetail(userId) {
     const role = (user.role || 'reader').toLowerCase();
     const roleLabel = role.charAt(0).toUpperCase() + role.slice(1);
     const approvalStatus = user.role === 'author' 
-        ? (user.authorApproved ? '<span style="color: #28a745;">✓ Approved</span>' : '<span style="color: #ffc107;">⏳ Pending Approval</span>')
+        ? (user.authorApproved ? '<span class="color-success">✓ Approved</span>' : '<span class="color-warning">⏳ Pending Approval</span>')
         : '';
     
     modalBody.innerHTML = `
@@ -2233,16 +2401,16 @@ function viewBookDetailAdmin(bookId) {
             </div>
             <div class="modal-info-row editable-row full-width">
                 <label>Description:</label>
-                <div class="editable-value" data-field="description" data-id="${book.id}" data-type="book" style="margin-top: 10px;">
+                <div class="editable-value margin-top-10" data-field="description" data-id="${book.id}" data-type="book">
                     ${(book.description || 'No description').replace(/\n/g, '<br>')}
                 </div>
-                <button class="btn btn-outline btn-small" onclick="editFieldInModal('description', ${book.id}, 'book')" style="margin-top: 10px;">
+                <button class="btn btn-outline btn-small margin-top-10" onclick="editFieldInModal('description', ${book.id}, 'book')">
                     <i class="fas fa-edit"></i> Edit Description
                 </button>
             </div>
             <div class="modal-info-row editable-row">
                 <label>Cover URL:</label>
-                <span class="editable-value" data-field="cover" data-id="${book.id}" data-type="book" style="word-break: break-all;">${book.cover || 'N/A'}</span>
+                <span class="editable-value word-break-all" data-field="cover" data-id="${book.id}" data-type="book">${book.cover || 'N/A'}</span>
                 <button class="btn btn-outline btn-small" onclick="editFieldInModal('cover', ${book.id}, 'book')">
                     <i class="fas fa-edit"></i>
                 </button>
@@ -2466,17 +2634,17 @@ function showLoginModal(action, bookId) {
     modalBody.innerHTML = `
         <h2>Login Required</h2>
         <div class="admin-modal-info">
-            <p style="color: var(--text-color); margin-bottom: 20px;">
+            <p class="text-color-opacity-8 margin-bottom-20">
                 Please login to ${actionText}.
             </p>
             <form id="loginModalForm" onsubmit="handleLoginModal(event, '${action}', ${bookId})">
                 <div class="form-group">
                     <label for="modalLoginUsername">Username or Email</label>
-                    <input type="text" id="modalLoginUsername" name="username" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                    <input type="text" id="modalLoginUsername" name="username" required class="modal-input">
                 </div>
                 <div class="form-group">
                     <label for="modalLoginPassword">Password</label>
-                    <input type="password" id="modalLoginPassword" name="password" required style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color);">
+                    <input type="password" id="modalLoginPassword" name="password" required class="modal-input">
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">
@@ -2487,8 +2655,8 @@ function showLoginModal(action, bookId) {
                     </button>
                 </div>
             </form>
-            <div style="margin-top: 20px; text-align: center;">
-                <p style="color: var(--text-color);">Don't have an account? <a href="https://papertrai1.netlify.app/login.html" style="color: #4a90e2;">Sign up here</a></p>
+            <div class="margin-top-20 text-align-center">
+                <p class="text-color-opacity-8">Don't have an account? <a href="https://papertrai1.netlify.app/login.html" class="color-primary-link">Sign up here</a></p>
             </div>
         </div>
     `;
@@ -2511,10 +2679,9 @@ function handleLoginModal(e, action, bookId) {
     const password = formData.get('password');
     // Call backend login endpoint
     const modalLoginHeaders = { 'Content-Type': 'application/json' };
-    if (CSRF_TOKEN) {
-        modalLoginHeaders['X-CSRF-Token'] = CSRF_TOKEN;
-    } else {
-        console.warn('CSRF token missing when attempting modal login');
+    const csrfToken = getCSRFToken();
+    if (csrfToken) {
+        modalLoginHeaders['X-CSRF-Token'] = csrfToken;
     }
     fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
@@ -2584,26 +2751,26 @@ function showAddReviewModal(bookId) {
     
     let ratingHTML = '';
     for (let i = 1; i <= 5; i++) {
-        ratingHTML += `<i class="far fa-star review-star" data-rating="${i}" style="font-size: 2rem; color: #ffc107; cursor: pointer; margin-right: 5px;"></i>`;
+        ratingHTML += `<i class="far fa-star review-star font-size-2rem color-warning cursor-pointer" data-rating="${i}"></i>`;
     }
     
     modalBody.innerHTML = `
         <h2>${existingReview ? 'Edit Your Review' : 'Add Your Review'}</h2>
         <div class="admin-modal-info">
-            <p style="color: var(--text-color); margin-bottom: 20px;">
+            <p class="text-color-opacity-8 margin-bottom-20">
                 ${book ? `Reviewing: <strong>${book.title}</strong>` : ''}
             </p>
             <form id="reviewModalForm" onsubmit="handleAddReview(event, ${bookId}, ${existingReview ? existingReview.id : 'null'})">
                 <div class="form-group">
                     <label>Rating *</label>
-                    <div id="reviewStars" style="margin: 10px 0;">
+                    <div id="reviewStars" class="margin-10-0">
                         ${ratingHTML}
                     </div>
                     <input type="hidden" id="reviewRating" name="rating" value="${existingReview ? existingReview.rating : '0'}" required>
                 </div>
                 <div class="form-group">
                     <label for="reviewComment">Your Review *</label>
-                    <textarea id="reviewComment" name="comment" required rows="5" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); resize: vertical;">${existingReview ? existingReview.comment : ''}</textarea>
+                    <textarea id="reviewComment" name="comment" required rows="5" class="modal-textarea">${existingReview ? escapeHtml(existingReview.comment) : ''}</textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="submit" class="btn btn-primary">
@@ -3139,7 +3306,7 @@ function loadUserProfile(user) {
     
     const role = (user.role || 'reader').charAt(0).toUpperCase() + (user.role || 'reader').slice(1);
     const approvalStatus = user.role === 'author' 
-        ? (user.authorApproved ? '<span style="color: #28a745;">✓ Approved</span>' : '<span style="color: #ffc107;">⏳ Pending Approval</span>')
+        ? (user.authorApproved ? '<span class="color-success">✓ Approved</span>' : '<span class="color-warning">⏳ Pending Approval</span>')
         : '';
     
     container.innerHTML = `
@@ -3196,13 +3363,13 @@ function changePassword() {
                     <div class="form-group">
                         <label for="newPassword">New Password *</label>
                         <input id="newPassword" name="newPassword" type="password" required minlength="6" autocomplete="new-password" />
-                        <small style="color: var(--text-color); opacity: 0.7; display: block; margin-top: 5px;">Password must be at least 6 characters long</small>
+                        <small class="text-color-opacity-7 display-block margin-top-10">Password must be at least 6 characters long</small>
                     </div>
                     <div class="form-group">
                         <label for="confirmPassword">Confirm New Password *</label>
                         <input id="confirmPassword" name="confirmPassword" type="password" required minlength="6" autocomplete="new-password" />
                     </div>
-                    <div id="changePasswordError" style="color:#e74c3c;margin-top:8px;min-height:20px;"></div>
+                    <div id="changePasswordError" class="color-error margin-top-10 min-height-20"></div>
                     <div class="modal-actions">
                         <button type="submit" class="btn btn-primary">Change Password</button>
                         <button type="button" id="cancelChangePassword" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
@@ -3298,7 +3465,8 @@ function changePassword() {
 
         // Prepare request with security headers
         const headers = { 'Content-Type': 'application/json' };
-        if (CSRF_TOKEN) headers['X-CSRF-Token'] = CSRF_TOKEN;
+        const csrfToken = getCSRFToken();
+        if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
 
         try {
             const res = await fetch(`${API_BASE}/api/auth/change-password`, {

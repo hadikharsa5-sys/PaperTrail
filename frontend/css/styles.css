@@ -2362,6 +2362,102 @@ body.dark-mode .admin-modal-content #changePasswordError {
     color: #ff6b6b;
 }
 
+/* Utility classes to replace inline styles */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.margin-bottom-20 {
+    margin-bottom: 20px;
+}
+
+.text-align-center {
+    text-align: center;
+}
+
+.margin-top-10 {
+    margin-top: 10px;
+}
+
+.margin-top-20 {
+    margin-top: 20px;
+}
+
+.margin-bottom-30 {
+    margin-bottom: 30px;
+}
+
+.color-success {
+    color: #28a745;
+}
+
+.color-warning {
+    color: #ffc107;
+}
+
+.color-error {
+    color: #e74c3c;
+}
+
+.word-break-all {
+    word-break: break-all;
+}
+
+.font-size-2rem {
+    font-size: 2rem;
+    margin-right: 5px;
+}
+
+.color-primary-link {
+    color: #4a90e2;
+}
+
+.text-color-opacity-7 {
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.text-color-opacity-8 {
+    color: var(--text-color);
+    opacity: 0.8;
+}
+
+.min-height-20 {
+    min-height: 20px;
+}
+
+.display-block {
+    display: block;
+}
+
+.margin-10-0 {
+    margin: 10px 0;
+}
+
+.max-width-100 {
+    max-width: 100%;
+}
+
+/* Form input styles for modals (replaces inline styles) */
+.modal-input {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+}
+
+.modal-textarea {
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-color);
+    color: var(--text-color);
+    resize: vertical;
+}
+
 /* Responsive Design for New Components */
 @media (max-width: 768px) {
     .auth-container {
