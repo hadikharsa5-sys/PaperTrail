@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const db = require("../db");
 const rateLimit = require('express-rate-limit');
 const { getAuthCookieOptions } = require('../middleware/cookies');
+const { authenticateToken } = require('../middleware/auth');
 const { logAuthFailure, logAuthSuccess } = require('../middleware/logger');
 
 // Fail fast if JWT secret is missing
@@ -302,5 +303,40 @@ router.post('/logout', async (req, res) => {
   }
 });
 
+// POST /api/auth/change-password
+// Body: { currentPassword, newPassword }
+// Requires authentication (access token cookie)
+router.post('/change-password', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { currentPassword, newPassword } = req.body || {};
+    if (!currentPassword || !newPassword) return res.status(400).json({ error: 'Missing current or new password' });
+    if (typeof newPassword !== 'string' || newPassword.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+
+    // Fetch current hash
+    const [rows] = await db.query('SELECT password_hash FROM users WHERE id = ? LIMIT 1', [userId]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const storedHash = rows[0].password_hash;
+
+    // Verify current password
+    const match = await bcrypt.compare(String(currentPassword), storedHash);
+    if (!match) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    // Hash new password with bcrypt (10 rounds)
+    const newHash = await bcrypt.hash(String(newPassword), 10);
+
+    await db.query('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, userId]);
+
+    // Successful change
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Change password error:', err);
+    next(err);
+  }
+});
+
 
 module.exports = router;
+
