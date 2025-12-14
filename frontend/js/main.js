@@ -8,6 +8,8 @@ let currentPage = 1;
 let currentView = 'grid';
 let currentFilters = { genre: '', year: '', author: '', priceRange: '', sortBy: 'title' };
 let searchSuggestionTimeout = null;
+// Keep CSRF token in a safe in-memory variable (not localStorage/sessionStorage)
+let CSRF_TOKEN = null;
 
 // Simple helper to escape text for safe insertion into HTML
 function escapeHtml(str) {
@@ -23,25 +25,29 @@ function escapeHtml(str) {
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
     // Fetch CSRF token, then check backend for authenticated user, then init app
-    fetch(`${API_BASE}/csrf-token`, {
-  credentials: "include"
-})
+    fetch(`${API_BASE}/api/csrf-token`, { credentials: 'include' })
         .then(async (res) => {
             if (res.ok) {
                 const d = await res.json();
-                window._csrfToken = d.csrfToken;
+                CSRF_TOKEN = d.csrfToken;
             } else {
-                window._csrfToken = null;
+                CSRF_TOKEN = null;
             }
         }).catch(err => {
             console.warn('CSRF fetch failed', err);
-            window._csrfToken = null;
+            CSRF_TOKEN = null;
         }).finally(async () => {
             try {
                 let res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
                 if (res.status === 401) {
                     // try to refresh
-                    const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } });
+                    const refreshHeaders = {};
+                    if (CSRF_TOKEN) {
+                        refreshHeaders['X-CSRF-Token'] = CSRF_TOKEN;
+                    } else {
+                        console.warn('CSRF token missing when attempting refresh');
+                    }
+                    const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include', headers: refreshHeaders });
                     if (refreshRes.ok) {
                         res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' });
                     }
@@ -182,7 +188,13 @@ function hideAdminLink() {
 function logout() {
     document.querySelectorAll('.alert').forEach(alert => alert.remove());
     // Call backend logout to clear cookie
-    fetch(`${API_BASE}/api/auth/login`, { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } })
+    const logoutHeaders = {};
+    if (CSRF_TOKEN) {
+        logoutHeaders['X-CSRF-Token'] = CSRF_TOKEN;
+    } else {
+        console.warn('CSRF token missing when attempting logout');
+    }
+    fetch(`${API_BASE}/api/auth/logout`, { method: 'POST', credentials: 'include', headers: logoutHeaders })
         .then(() => {
             saveCurrentUser(null);
             updateNavigation();
@@ -1187,9 +1199,15 @@ function handleLogin(e) {
     }
 
     // Call backend login endpoint
+    const loginHeaders = { 'Content-Type': 'application/json' };
+    if (CSRF_TOKEN) {
+        loginHeaders['X-CSRF-Token'] = CSRF_TOKEN;
+    } else {
+        console.warn('CSRF token missing when attempting login');
+    }
     fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
+        headers: loginHeaders,
         credentials: 'include',
         body: JSON.stringify({ usernameOrEmail: username, password })
     }).then(async res => {
@@ -1317,9 +1335,15 @@ function handleSignup(e) {
     }
     
     // Call backend register endpoint
+    const registerHeaders = { 'Content-Type': 'application/json' };
+    if (CSRF_TOKEN) {
+        registerHeaders['X-CSRF-Token'] = CSRF_TOKEN;
+    } else {
+        console.warn('CSRF token missing when attempting registration');
+    }
     fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
+        headers: registerHeaders,
         credentials: 'include',
         body: JSON.stringify({ name, username, email, password, role })
     }).then(async res => {
@@ -2486,9 +2510,15 @@ function handleLoginModal(e, action, bookId) {
     const username = formData.get('username');
     const password = formData.get('password');
     // Call backend login endpoint
+    const modalLoginHeaders = { 'Content-Type': 'application/json' };
+    if (CSRF_TOKEN) {
+        modalLoginHeaders['X-CSRF-Token'] = CSRF_TOKEN;
+    } else {
+        console.warn('CSRF token missing when attempting modal login');
+    }
     fetch(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
+        headers: modalLoginHeaders,
         credentials: 'include',
         body: JSON.stringify({ usernameOrEmail: username, password })
     }).then(async res => {
