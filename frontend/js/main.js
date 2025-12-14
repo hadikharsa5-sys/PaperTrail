@@ -161,7 +161,7 @@ function updateNavigation() {
     } else {
         if (loginBtn) {
             loginBtn.textContent = 'Login/Signup';
-            loginBtn.href = 'login.html';
+            loginBtn.href = 'https://papertrai1.netlify.app/login.html';
             loginBtn.style.display = 'inline-block';
         }
         if (profileMenu) profileMenu.style.display = 'none';
@@ -2488,7 +2488,7 @@ function showLoginModal(action, bookId) {
                 </div>
             </form>
             <div style="margin-top: 20px; text-align: center;">
-                <p style="color: var(--text-color);">Don't have an account? <a href="login.html" style="color: #4a90e2;">Sign up here</a></p>
+                <p style="color: var(--text-color);">Don't have an account? <a href="https://papertrai1.netlify.app/login.html" style="color: #4a90e2;">Sign up here</a></p>
             </div>
         </div>
     `;
@@ -3127,7 +3127,7 @@ function rejectAuthor(userId) {
 function initializeUserProfile() {
     const currentUser = getCurrentUser();
     if (!currentUser) {
-        window.location.href = 'login.html';
+        window.location.href = 'https://papertrai1.netlify.app/login.html';
         return;
     }
     loadUserProfile(currentUser);
