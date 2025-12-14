@@ -17,14 +17,19 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // Restrict CORS to configured frontend origin and allow credentials for cookies
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN;
-if (!FRONTEND_ORIGIN) {
-  console.error('FRONTEND_ORIGIN is not set. CORS origin must be explicitly configured.');
+// If the environment variable isn't set, default to the Netlify site used for the frontend.
+// NOTE: it's best to set FRONTEND_ORIGIN in Render's environment; the default is a helpful fallback.
+const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'https://papertrai1.netlify.app';
+if (!process.env.FRONTEND_ORIGIN) {
+  console.warn(`FRONTEND_ORIGIN environment variable not found — using fallback ${FRONTEND_ORIGIN}`);
 }
+console.log(`Starting server with FRONTEND_ORIGIN=${FRONTEND_ORIGIN} NODE_ENV=${process.env.NODE_ENV || 'development'}`);
+
 app.use(cors({
   origin: FRONTEND_ORIGIN,
   credentials: true,
-  allowedHeaders: ['Content-Type', 'X-CSRF-Token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+
 }));
 
 // Content Security Policy (start in report-only mode to discover violations)
@@ -59,13 +64,32 @@ app.use(express.json({ limit: '10kb' }));
 // CSRF protection: create middleware but do not apply globally.
 const csrfProtection = csurf({ cookie: { httpOnly: false, sameSite: 'none', secure: process.env.NODE_ENV === 'production' } });
 
-// Apply CSRF protection only to state-changing methods (POST, PUT, DELETE)
+// Always allow preflight requests
+app.options('*', cors({
+  origin: FRONTEND_ORIGIN,
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+}));
+
+
+
 app.use((req, res, next) => {
+  // Always allow preflight
+  if (req.method === 'OPTIONS') return next();
+
+  // ❌ Do NOT CSRF-protect auth endpoints
+  if (req.path.startsWith('/api/auth')) {
+    return next();
+  }
+
+  // ✅ Protect other state-changing routes
   if (['POST', 'PUT', 'DELETE'].includes(req.method)) {
     return csrfProtection(req, res, next);
   }
+
   next();
 });
+
 
 // Global API rate limiter: reasonable default for general API endpoints
 const apiLimiter = rateLimit({
