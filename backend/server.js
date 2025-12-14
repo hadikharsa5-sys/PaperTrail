@@ -27,6 +27,29 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'X-CSRF-Token']
 }));
 
+// Content Security Policy (start in report-only mode to discover violations)
+// Enforced Content Security Policy for production use.
+// This restricts the sources of scripts/styles/images/connect targets to
+// reduce XSS and data exfiltration risks. Keep in sync with the Netlify frontend origin.
+app.use(
+  helmet.contentSecurityPolicy({
+    directives: {
+      defaultSrc: ["'self'"],
+      // Allow scripts served from this API or the frontend host. Avoid 'unsafe-inline' for scripts.
+      scriptSrc: ["'self'", FRONTEND_ORIGIN],
+      // Styles may still require 'unsafe-inline' for some static sites — consider removing after refactor.
+      styleSrc: ["'self'", FRONTEND_ORIGIN, "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', FRONTEND_ORIGIN],
+      connectSrc: ["'self'", FRONTEND_ORIGIN],
+      fontSrc: ["'self'", FRONTEND_ORIGIN, 'data:'],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+    // Enforce policy in production — during development you can toggle via FRONTEND_ORIGIN or NODE_ENV checks.
+    reportOnly: false,
+  })
+);
+
 // Parse cookies (for session/JWT cookie handling)
 app.use(cookieParser());
 
@@ -44,18 +67,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limiting for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+// Global API rate limiter: reasonable default for general API endpoints
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // allow bursty traffic but limit abusive clients
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  message: { error: 'Too many requests, slow down.' }
 });
 
-// Routes (apply rate limiter to auth routes)
-app.use("/api/auth", authLimiter, authRoutes);
-app.use("/api/books", bookRoutes);
+// Apply general API limiter to all /api routes. Specific routes (e.g., login) have their own stricter limiters.
+app.use('/api', apiLimiter);
+app.use('/api/auth', authRoutes);
+app.use('/api/books', bookRoutes);
 
 // Endpoint to fetch a fresh CSRF token (frontend should call this and send token with POSTs)
 app.get('/api/csrf-token', csrfProtection, (req, res) => {
@@ -64,6 +88,7 @@ app.get('/api/csrf-token', csrfProtection, (req, res) => {
     res.json({ csrfToken: token });
   } catch (err) {
     console.error('CSRF token error:', err);
+    // Centralized error handler will log details; return a generic message.
     res.status(500).json({ error: 'Could not generate CSRF token' });
   }
 });
@@ -71,6 +96,17 @@ app.get('/api/csrf-token', csrfProtection, (req, res) => {
 // Basic health check
 app.get("/", (req, res) => {
   res.json({ status: "PaperTrail API running" });
+});
+
+// Centralized error handler
+// Avoid leaking stack traces in production; log full errors server-side.
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+  // In development return the message (but be cautious about stack traces)
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 // Start server

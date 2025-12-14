@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db");
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { logAuthzFailure } = require('../middleware/logger');
 
 // GET /api/books  (for explore page)
 router.get("/", async (req, res) => {
@@ -69,7 +70,7 @@ router.get("/:id", async (req, res) => {
 
 // POST /api/books (author / admin only – for now we won't check token)
 // Require authentication and author/admin role
-router.post("/", authenticateToken, requireRole(['author', 'admin']), async (req, res) => {
+router.post("/", authenticateToken, requireRole(['author', 'admin']), async (req, res, next) => {
   try {
     const { title, author, genre, year, price, description, cover } = req.body;
 
@@ -90,7 +91,56 @@ router.post("/", authenticateToken, requireRole(['author', 'admin']), async (req
     res.status(201).json(rows[0]);
   } catch (err) {
     console.error("Create book error:", err);
-    res.status(500).json({ error: "Server error" });
+    next(err);
+  }
+});
+
+// PUT /api/books/:id — update a book (only owner or admin)
+router.put('/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const bookId = req.params.id;
+    const [rows] = await db.query('SELECT * FROM books WHERE id = ?', [bookId]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Book not found' });
+    const book = rows[0];
+
+    // Owner or admin only
+    if (book.added_by !== req.user.id && req.user.role !== 'admin') {
+      logAuthzFailure({ userId: req.user.id, username: '-', ip: req.ip, action: 'update-book', resource: `book:${bookId}` });
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const { title, author, genre, year, price, description, cover } = req.body;
+    await db.query(
+      `UPDATE books SET title = ?, author = ?, genre = ?, year = ?, price = ?, description = ?, cover = ? WHERE id = ?`,
+      [title, author, genre, year, price, description, cover, bookId]
+    );
+
+    const [updated] = await db.query('SELECT * FROM books WHERE id = ?', [bookId]);
+    res.json(updated[0]);
+  } catch (err) {
+    console.error('Update book error:', err);
+    next(err);
+  }
+});
+
+// DELETE /api/books/:id — delete a book (only owner or admin)
+router.delete('/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const bookId = req.params.id;
+    const [rows] = await db.query('SELECT * FROM books WHERE id = ?', [bookId]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Book not found' });
+    const book = rows[0];
+
+    if (book.added_by !== req.user.id && req.user.role !== 'admin') {
+      logAuthzFailure({ userId: req.user.id, username: '-', ip: req.ip, action: 'delete-book', resource: `book:${bookId}` });
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    await db.query('DELETE FROM books WHERE id = ?', [bookId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Delete book error:', err);
+    next(err);
   }
 });
 

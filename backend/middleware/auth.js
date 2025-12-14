@@ -1,31 +1,38 @@
 const jwt = require('jsonwebtoken');
+const { logAuthzFailure } = require('./logger');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'please-set-a-secret-in-production';
-
+// Middleware: authenticateToken
+// Verifies the access JWT stored in the httpOnly cookie and attaches
+// `req.user = { id, role }` on success.
+// Security notes:
+// - Token comes from httpOnly cookie to reduce XSS theft risk.
+// - We do NOT read tokens from localStorage.
 function authenticateToken(req, res, next) {
-  try {
-    const token = req.cookies && req.cookies.token;
-    if (!token) return res.status(401).json({ error: 'Authentication required' });
+  const token = req.cookies && req.cookies.token;
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
-    const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload;
-    next();
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // Attach minimal user info to the request. Do not attach sensitive fields.
+    req.user = { id: payload.id, role: payload.role };
+    return next();
   } catch (err) {
-    console.error('Token error:', err);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    return res.status(401).json({ error: 'Invalid token' });
   }
 }
 
-function requireRole(roles = []) {
-  return function (req, res, next) {
-    if (!req.user) return res.status(401).json({ error: 'Authentication required' });
-    const userRole = (req.user.role || '').toLowerCase();
-    if (Array.isArray(roles) && roles.length > 0) {
-      if (!roles.map(r => r.toLowerCase()).includes(userRole)) {
-        return res.status(403).json({ error: 'Forbidden' });
-      }
+// Middleware factory: requireRole
+// Ensures the authenticated user has one of the allowed roles.
+// Usage: requireRole(['admin']) or requireRole(['author','admin'])
+function requireRole(allowedRoles = []) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'Not authenticated' });
+    if (!allowedRoles.includes(req.user.role)) {
+      // Log authorization failure (do not include secrets)
+      logAuthzFailure({ userId: req.user.id, username: '-', ip: req.ip, action: 'requireRole', resource: allowedRoles.join(',') });
+      return res.status(403).json({ error: 'Forbidden' });
     }
-    next();
+    return next();
   };
 }
 

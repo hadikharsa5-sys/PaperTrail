@@ -33,19 +33,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }).catch(err => {
             console.warn('CSRF fetch failed', err);
             window._csrfToken = null;
-        }).finally(() => {
-            fetch('/api/auth/me', { credentials: 'include' })
-                .then(async res => {
-                    if (res.ok) {
-                        const user = await res.json();
-                        saveCurrentUser(user);
-                    } else {
-                        saveCurrentUser(null);
+        }).finally(async () => {
+            try {
+                let res = await fetch('/api/auth/me', { credentials: 'include' });
+                if (res.status === 401) {
+                    // try to refresh
+                    const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include', headers: { 'X-CSRF-Token': window._csrfToken || '' } });
+                    if (refreshRes.ok) {
+                        res = await fetch('/api/auth/me', { credentials: 'include' });
                     }
-                }).catch(err => {
-                    console.warn('Auth check failed', err);
+                }
+                if (res.ok) {
+                    const user = await res.json();
+                    saveCurrentUser(user);
+                } else {
                     saveCurrentUser(null);
-                }).finally(() => initializeApp());
+                }
+            } catch (err) {
+                console.warn('Auth check failed', err);
+                saveCurrentUser(null);
+            } finally {
+                initializeApp();
+            }
         });
     initializeDarkMode();
 });
