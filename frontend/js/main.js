@@ -3178,21 +3178,178 @@ function loadUserProfile(user) {
 }
 
 function changePassword() {
-    const newPassword = prompt('Enter new password (minimum 6 characters):');
-    if (!newPassword || newPassword.length < 6) {
-        showAlert('Password must be at least 6 characters long', 'error');
-        return;
+    // Create or get modal element
+    let modal = document.getElementById('changePasswordModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'changePasswordModal';
+        modal.className = 'admin-modal hidden';
+        modal.innerHTML = `
+            <div class="admin-modal-content">
+                <span class="admin-modal-close" onclick="closeChangePasswordModal()">&times;</span>
+                <h2>Change Password</h2>
+                <form id="changePasswordForm">
+                    <div class="form-group">
+                        <label for="currentPassword">Current Password *</label>
+                        <input id="currentPassword" name="currentPassword" type="password" required minlength="6" autocomplete="current-password" />
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password *</label>
+                        <input id="newPassword" name="newPassword" type="password" required minlength="6" autocomplete="new-password" />
+                        <small style="color: var(--text-color); opacity: 0.7; display: block; margin-top: 5px;">Password must be at least 6 characters long</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm New Password *</label>
+                        <input id="confirmPassword" name="confirmPassword" type="password" required minlength="6" autocomplete="new-password" />
+                    </div>
+                    <div id="changePasswordError" style="color:#e74c3c;margin-top:8px;min-height:20px;"></div>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                        <button type="button" id="cancelChangePassword" class="btn btn-secondary" onclick="closeChangePasswordModal()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        `;
+
+        // Accessibility attributes
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        const heading = modal.querySelector('h2');
+        if (heading) {
+            heading.id = 'changePasswordHeading';
+            modal.setAttribute('aria-labelledby', heading.id);
+        }
+
+        document.body.appendChild(modal);
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                closeChangePasswordModal();
+            }
+        });
+    }
+
+    // Show modal
+    modal.classList.remove('hidden');
+
+    const form = document.getElementById('changePasswordForm');
+    const errorDiv = document.getElementById('changePasswordError');
+
+    // Clear previous state
+    if (errorDiv) errorDiv.textContent = '';
+    if (form) form.reset();
+
+    // Focus management: move focus to first input, close on Esc
+    const firstInput = modal.querySelector('#currentPassword');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+    }
+
+    function handleKeyDown(e) {
+        if (e.key === 'Escape') {
+            closeChangePasswordModal();
+        }
     }
     
-    const currentUser = getCurrentUser();
-    const users = getUsers();
-    const userIndex = users.findIndex(u => u.id === currentUser.id);
-    
-    if (userIndex !== -1) {
-        users[userIndex].password = newPassword;
-        saveUsers(users);
-        currentUser.password = newPassword;
-        saveCurrentUser(currentUser);
-        showAlert('Password changed successfully', 'success');
+    // Remove old listener if exists
+    if (modal._handleKeyDown) {
+        document.removeEventListener('keydown', modal._handleKeyDown);
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    modal._handleKeyDown = handleKeyDown;
+
+    // Remove old submit listener if form exists
+    if (form) {
+        const newForm = form.cloneNode(true);
+        form.parentNode.replaceChild(newForm, form);
+    }
+    const updatedForm = document.getElementById('changePasswordForm');
+
+    updatedForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorDiv.textContent = '';
+        
+        const currentPassword = document.getElementById('currentPassword').value.trim();
+        const newPassword = document.getElementById('newPassword').value.trim();
+        const confirmPassword = document.getElementById('confirmPassword').value.trim();
+
+        // Security validations
+        if (!currentPassword || !newPassword || !confirmPassword) {
+            errorDiv.textContent = 'All fields are required';
+            return;
+        }
+
+        if (newPassword.length < 6) {
+            errorDiv.textContent = 'New password must be at least 6 characters long';
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            errorDiv.textContent = 'New password and confirmation do not match';
+            return;
+        }
+
+        // Prevent reusing the same password (basic check)
+        if (currentPassword === newPassword) {
+            errorDiv.textContent = 'New password must be different from current password';
+            return;
+        }
+
+        // Prepare request with security headers
+        const headers = { 'Content-Type': 'application/json' };
+        if (CSRF_TOKEN) headers['X-CSRF-Token'] = CSRF_TOKEN;
+
+        try {
+            const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+                method: 'POST',
+                credentials: 'include',
+                headers,
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+
+            let data;
+            try { 
+                data = await res.json(); 
+            } catch (err) { 
+                data = { error: await res.text() || 'An error occurred' }; 
+            }
+
+            if (!res.ok) {
+                errorDiv.textContent = data.error || 'Change password failed. Please try again.';
+                return;
+            }
+
+            // Success - show alert and close modal
+            showAlert('Password changed successfully', 'success');
+            closeChangePasswordModal();
+            
+            // Clear form fields for security
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        } catch (err) {
+            console.error('Change password request failed', err);
+            errorDiv.textContent = 'Network error while changing password. Please check your connection and try again.';
+        }
+    });
+
+    // Store handleKeyDown reference for cleanup
+    modal._handleKeyDown = handleKeyDown;
+}
+
+function closeChangePasswordModal() {
+    const modal = document.getElementById('changePasswordModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        if (modal._handleKeyDown) {
+            document.removeEventListener('keydown', modal._handleKeyDown);
+            delete modal._handleKeyDown;
+        }
+        // Clear form and errors
+        const form = document.getElementById('changePasswordForm');
+        if (form) form.reset();
+        const errorDiv = document.getElementById('changePasswordError');
+        if (errorDiv) errorDiv.textContent = '';
     }
 }
